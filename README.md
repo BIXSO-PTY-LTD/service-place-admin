@@ -1,64 +1,101 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Server config
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+_ Install necessary libs
 
-## About Laravel
+```
+apt update && apt install -y mysql-server composer nginx php8.2 php8.2-curl php8.2-bcmath php8.2-ctype php8.2-mbstring php8.2-pdo php8.2-tokenizer php8.2-xml php8.2-zip php8.2-fileinfo php8.2-gd php8.2-mysql php8.2-fpm libapache2-mod-php
+```
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+_ Create new SSH key
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+_ clone project to `/var/www/service-place-admin`
 
-## Learning Laravel
+_ Install libs
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```
+composer update
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+_ Run command:
 
-## Laravel Sponsors
+```
+sudo chmod -R 777 /var/www/service-place-admin
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+_ Edit nginx config at `/etc/nginx/sites-available/default`
 
-### Premium Partners
+```
+server {
+        listen 80;
+        listen [::]:80;
+        server_name sieuthidichvu.vn www.sieuthidichvu.vn;
+        root /var/www/service-place-admin;
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+        index index.php index.html index.htm;
 
-## Contributing
+        charset utf-8;
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+        location / {
+                try_files $uri $uri/ /index.php?$query_string;
+        }
 
-## Code of Conduct
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+        error_page 404 /index.php;
 
-## Security Vulnerabilities
+        location ~ \.php$ {
+                fastcgi_index  index.php;
+                fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                fastcgi_pass    unix:/var/run/php/php8.2-fpm.sock;
+                fastcgi_param   PATH_INFO       $fastcgi_path_info;
+                fastcgi_param   SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                include         fastcgi_params;
+        }
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+}
+```
 
-## License
+_ Add SSL:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d sieuthidichvu.vn -d www.sieuthidichvu.vn
+```
+
+_ Restart Nginx:
+
+```
+service nginx restart
+```
+
+_ Config mysql:
+
+```
+
+sudo mysql -u root -p
+CREATE DATABASE db_name;
+CREATE USER 'db_user'@'localhost' IDENTIFIED BY 'db_password';
+GRANT ALL PRIVILEGES ON db_name . * TO 'db_user'@'localhost';
+
+```
+
+_ Enable firewall
+
+```
+ufw enable
+ufw allow 'Nginx Full'
+```
+
+_ If get CORS error, add this to nginx config:
+
+```
+add_header Access-Control-Allow-Origin $http_origin;
+```
